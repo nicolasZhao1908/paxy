@@ -4,6 +4,9 @@
 -define(timeout, 2000).
 -define(backoff, 10).
 
+get_timeout() ->
+  list_to_integer(os:getenv("timeout")).
+
 start(Name, Proposal, Acceptors, Sleep, PanelId, Main) ->
   spawn(fun() -> init(Name, Proposal, Acceptors, Sleep, PanelId, Main) end).
 
@@ -73,6 +76,7 @@ collect(N, Round, MaxVoted, Proposal) ->
       collect(N, Round, MaxVoted, Proposal);
     {sorry, _} ->
       collect(N, Round, MaxVoted, Proposal)
+  %after ?timeout ->
   after ?timeout ->
     abort
   end.

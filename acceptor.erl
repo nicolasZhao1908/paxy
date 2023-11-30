@@ -1,7 +1,7 @@
 -module(acceptor).
 -export([start/2]).
--define(delay_promise, 3000).
--define(delay_accept, 3000).
+-define(delay_promise, 2000).
+-define(delay_accept, 2000).
 -define(drop,1).
 
 
@@ -35,14 +35,14 @@ acceptor(Name, Promised, Voted, Value, PanelId) ->
         true ->
 
           %Original -----------------------------
-          %Proposer ! {promise, Round, Voted, Value}, %- original
+          Proposer ! {promise, Round, Voted, Value}, %- original
 
           %Experiment i.1)-----------------------------
-          %T = rand:uniform(getdelay()),
+          %T = rand:uniform(?delay_promise),
           %timer:send_after(T,Proposer,{promise, Round, Voted, Value}),
 
           %Experiment iii)-----------------------------
-          send_or_drop(Proposer,{promise, Round, Voted, Value}),
+          %send_or_drop(Proposer,{promise, Round, Voted, Value}),
 
       io:format("[Acceptor ~w] Phase 1: promised ~w voted ~w colour ~w~n",
         [Name, Round, Voted, Value]),
@@ -60,14 +60,14 @@ acceptor(Name, Promised, Voted, Value, PanelId) ->
         true ->
 
           %Original -----------------------------
-          %Proposer ! {vote, Round}, % Proposer ! {vote, Round}
+          Proposer ! {vote, Round}, % Proposer ! {vote, Round}
 
           %Experiment i.1) -----------------------------
-          %T = rand:uniform(getdelay()),
+          %T = rand:uniform(?delay_accept),
           %timer:send_after(T,Proposer,{vote, Round}),
 
           % Experiment iii) -----------------------------
-          send_or_drop(Proposer,{vote, Round}),
+          %send_or_drop(Proposer,{vote, Round}),
           
           case order:goe(Round, Voted) of
             true ->
