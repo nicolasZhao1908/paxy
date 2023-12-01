@@ -1,3 +1,4 @@
 experiments
+experiments_bak
 *.beam
 erl_crash.dump
