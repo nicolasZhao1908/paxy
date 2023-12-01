@@ -7,6 +7,8 @@
 
 -define(NUM_PROP, 3).
 -define(NUM_ACC, 5).
+-define(AcceptorNode,'paxy-acc@ferrandf').
+-define(ProposerNode,'paxy-pro@ferrandf').
 
 generate_unique_id() ->
     Timestamp = os:timestamp(),
@@ -60,7 +62,7 @@ start(Sleep) ->
   AcceptorNames = ["Homer", "Marge", "Bart", "Lisa", "Maggie"],
   %AccRegister = [homer, marge, bart, lisa, maggie],
   ProposerNames = [{"Fry", ?RED}, {"Bender", ?GREEN}, {"Leela", ?BLUE}],
-  AccRegister = [{X, 'paxy-acc'} ||X <- [homer, marge, bart, lisa, maggie]],
+  AccRegister = [{X, ?AcceptorNode} ||X <- [homer, marge, bart, lisa, maggie]],
   %ProposerRegister =  [{{Name, "paxy-pro"},Color} || {Name, Color} <- ProposerNames],
   PropInfo = [{fry, ?RED}, {bender, ?GREEN}, {leela, ?BLUE}],
   register(gui, spawn(fun() -> gui:start(AcceptorNames, ProposerNames) end)),
@@ -68,10 +70,10 @@ start(Sleep) ->
   receive
     {reqState, State} ->
       {AccIds, PropIds} = State,
-      spawn('paxy-acc', fun() -> 
+      spawn(?AcceptorNode, fun() -> 
         start_acceptors(AccIds, AccRegister) 
       end),
-      spawn('paxy-pro', fun() -> 
+      spawn(?ProposerNode, fun() ->
         Begin = erlang:monotonic_time(),
         start_proposers(PropIds, PropInfo, AccRegister, Sleep, self()),
         wait_proposers(length(PropIds)),
@@ -98,8 +100,7 @@ start_proposers(PropIds, PropInfo, Acceptors, Sleep, Main) ->
     [PropId|Rest] ->
       [{RegName, Colour} |RestInfo] = PropInfo,
       [FirstSleep|RestSleep] = Sleep,
-      proposer:start(RegName, Colour, Acceptors, FirstSleep, PropId, Main),	
-      %register({RegName,RegNode} ,proposer:start(RegName, Colour, Acceptors, FirstSleep, PropId, Main)),	
+      proposer:start(RegName, Colour, Acceptors, FirstSleep, PropId, Main),
       start_proposers(Rest, RestInfo, Acceptors, RestSleep, Main)
   end.
 
@@ -119,10 +120,12 @@ stop() ->
   stop(maggie),
   stop(gui).
 
+
 stop(Name) ->
   case whereis(Name) of
     undefined ->
+      {Name, ?AcceptorNode} ! stop,
       ok;
     Pid ->
       Pid ! stop
-  end.
+end.

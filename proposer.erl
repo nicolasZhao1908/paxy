@@ -1,7 +1,7 @@
 -module(proposer).
 -export([start/6]).
 
--define(timeout, 2000).
+-define(timeout, 200).
 -define(backoff, 10).
 
 get_timeout() ->

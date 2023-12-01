@@ -14,7 +14,7 @@ init(Name, PanelId) ->
   Value = na,
   acceptor(Name, Promised, Voted, Value, PanelId).
 
-getdelay() ->
+get_delay() ->
   D = os:getenv("delay"),
   case D of
       false -> ?delay_promise;
@@ -39,17 +39,17 @@ acceptor(Name, Promised, Voted, Value, PanelId) ->
       case order:gr(Round, Promised) of
         true ->
           %Original -----------------------------
-          Proposer ! {promise, Round, Voted, Value}, %- original
+          %Proposer ! {promise, Round, Voted, Value}, %- original
 
           %Experiment i.1)-----------------------------
-          %T = rand:uniform(get_delay()),
-          %timer:send_after(T,Proposer,{promise, Round, Voted, Value}),
+          T = rand:uniform(get_delay()),
+          timer:send_after(T,Proposer,{promise, Round, Voted, Value}),
 
           %Experiment iii)-----------------------------
           %send_or_drop(Proposer,{promise, Round, Voted, Value}),
 
-      io:format("[Acceptor ~w] Phase 1: promised ~w voted ~w colour ~w~n",
-        [Name, Round, Voted, Value]),
+      io:format("[Acceptor ~w on node ~w] Phase 1: promised ~w voted ~w colour ~w~n",
+        [Name, node(), Round, Voted, Value]),
           % Update gui
           Colour = case Value of na -> {0,0,0}; _ -> Value end,
           PanelId ! {updateAcc, "Voted: " ++ io_lib:format("~p", [Voted]), 
@@ -64,19 +64,19 @@ acceptor(Name, Promised, Voted, Value, PanelId) ->
         true ->
 
           %Original -----------------------------
-          Proposer ! {vote, Round}, % Proposer ! {vote, Round}
+          %Proposer ! {vote, Round}, % Proposer ! {vote, Round}
 
           %Experiment i.1) -----------------------------
-          %T = rand:uniform(get_delay()),
-          %timer:send_after(T,Proposer,{vote, Round}),
+          T = rand:uniform(get_delay()),
+          timer:send_after(T,Proposer,{vote, Round}),
 
           % Experiment iii) -----------------------------
           %send_or_drop(Proposer,{vote, Round}),
           
           case order:goe(Round, Voted) of
             true ->
-      io:format("[Acceptor ~w] Phase 2: promised ~w voted ~w colour ~w~n",
-                 [Name, Promised, Round, Proposal]), % Name, Promised, Round, Proposal
+      io:format("[Acceptor ~w on node ~w] Phase 2: promised ~w voted ~w colour ~w~n",
+                 [Name, node(), Promised, Round, Proposal]), % Name, Promised, Round, Proposal
               % Update gui
               PanelId ! {updateAcc, "Voted: " ++ io_lib:format("~p", [Round]), % Round
                          "Promised: " ++ io_lib:format("~p", [Promised]), Proposal}, %Proposal
