@@ -58,16 +58,20 @@ measure() ->
 
 start(Sleep) ->
   AcceptorNames = ["Homer", "Marge", "Bart", "Lisa", "Maggie"],
-  AccRegister = [homer, marge, bart, lisa, maggie],
+  %AccRegister = [homer, marge, bart, lisa, maggie],
   ProposerNames = [{"Fry", ?RED}, {"Bender", ?GREEN}, {"Leela", ?BLUE}],
+  AccRegister = [{X, 'paxy-acc'} ||X <- [homer, marge, bart, lisa, maggie]],
+  %ProposerRegister =  [{{Name, "paxy-pro"},Color} || {Name, Color} <- ProposerNames],
   PropInfo = [{fry, ?RED}, {bender, ?GREEN}, {leela, ?BLUE}],
   register(gui, spawn(fun() -> gui:start(AcceptorNames, ProposerNames) end)),
   gui ! {reqState, self()},
   receive
     {reqState, State} ->
       {AccIds, PropIds} = State,
-      start_acceptors(AccIds, AccRegister),
-      spawn(fun() -> 
+      spawn('paxy-acc', fun() -> 
+        start_acceptors(AccIds, AccRegister) 
+      end),
+      spawn('paxy-pro', fun() -> 
         Begin = erlang:monotonic_time(),
         start_proposers(PropIds, PropInfo, AccRegister, Sleep, self()),
         wait_proposers(length(PropIds)),
@@ -82,8 +86,8 @@ start_acceptors(AccIds, AccReg) ->
     [] ->
       ok;
     [AccId|Rest] ->
-      [RegName|RegNameRest] = AccReg,
-      register(RegName, acceptor:start(RegName, AccId)),
+      [{Name, _}|RegNameRest] = AccReg,
+      register(Name, acceptor:start(Name, AccId)),
       start_acceptors(Rest, RegNameRest)
   end.
 
@@ -92,9 +96,10 @@ start_proposers(PropIds, PropInfo, Acceptors, Sleep, Main) ->
     [] ->
       ok;
     [PropId|Rest] ->
-      [{RegName, Colour}|RestInfo] = PropInfo,
+      [{RegName, Colour} |RestInfo] = PropInfo,
       [FirstSleep|RestSleep] = Sleep,
       proposer:start(RegName, Colour, Acceptors, FirstSleep, PropId, Main),	
+      %register({RegName,RegNode} ,proposer:start(RegName, Colour, Acceptors, FirstSleep, PropId, Main)),	
       start_proposers(Rest, RestInfo, Acceptors, RestSleep, Main)
   end.
 

@@ -14,8 +14,13 @@ init(Name, PanelId) ->
   Value = na,
   acceptor(Name, Promised, Voted, Value, PanelId).
 
-%getdelay() ->
-%  list_to_integer(os:getenv("delay_shell")).
+getdelay() ->
+  D = os:getenv("delay"),
+  case D of
+      false -> ?delay_promise;
+      _ -> list_to_integer(D)
+  end.
+  
 
 getdrop() ->
   P = rand:uniform(10),
@@ -33,12 +38,11 @@ acceptor(Name, Promised, Voted, Value, PanelId) ->
     {prepare, Proposer, Round} ->
       case order:gr(Round, Promised) of
         true ->
-
           %Original -----------------------------
           Proposer ! {promise, Round, Voted, Value}, %- original
 
           %Experiment i.1)-----------------------------
-          %T = rand:uniform(?delay_promise),
+          %T = rand:uniform(get_delay()),
           %timer:send_after(T,Proposer,{promise, Round, Voted, Value}),
 
           %Experiment iii)-----------------------------
@@ -63,7 +67,7 @@ acceptor(Name, Promised, Voted, Value, PanelId) ->
           Proposer ! {vote, Round}, % Proposer ! {vote, Round}
 
           %Experiment i.1) -----------------------------
-          %T = rand:uniform(?delay_accept),
+          %T = rand:uniform(get_delay()),
           %timer:send_after(T,Proposer,{vote, Round}),
 
           % Experiment iii) -----------------------------
