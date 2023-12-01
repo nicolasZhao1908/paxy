@@ -1,7 +1,7 @@
 -module(proposer).
 -export([start/6]).
 
--define(timeout, 2000).
+-define(timeout, 200).
 -define(backoff, 10).
 
 get_timeout() ->
@@ -22,14 +22,14 @@ init(Name, Proposal, Acceptors, Sleep, PanelId, Main) ->
   {Decision, LastRound} = round(Name, ?backoff, Round, Proposal, Acceptors, PanelId),
   End = erlang:monotonic_time(),
   Elapsed = erlang:convert_time_unit(End-Begin, native, millisecond),
-  io:format("[Proposer ~w] DECIDED ~w in round ~w after ~w ms~n", 
-             [Name, Decision, LastRound, Elapsed]),
+  io:format("[Proposer ~w on node ~w] DECIDED ~w in round ~w after ~w ms~n", 
+             [Name, node(), Decision, LastRound, Elapsed]),
   Main ! done,
   PanelId ! stop.
 
 round(Name, Backoff, Round, Proposal, Acceptors, PanelId) ->
-  io:format("[Proposer ~w] Phase 1: round ~w proposal ~w~n", 
-             [Name, Round, Proposal]),
+  io:format("[Proposer ~w on node ~w] Phase 1: round ~w proposal ~w~n", 
+             [Name, node(), Round, Proposal]),
   % Update gui
   PanelId ! {updateProp, "Round: " ++ io_lib:format("~p", [Round]), Proposal},
   case ballot(Name, Round, Proposal, Acceptors, PanelId) of
@@ -47,8 +47,8 @@ ballot(Name, Round, Proposal, Acceptors, PanelId) ->
   MaxVoted = order:null(),
   case collect(Quorum, Round, MaxVoted, Proposal) of
     {accepted, Value} ->
-      io:format("[Proposer ~w] Phase 2: round ~w proposal ~w (was ~w)~n", 
-                 [Name, Round, Value, Proposal]),
+      io:format("[Proposer ~w on node ~w] Phase 2: round ~w proposal ~w (was ~w)~n", 
+                 [Name, node(), Round, Value, Proposal]),
       % update gui
       PanelId ! {updateProp, "Round: " ++ io_lib:format("~p", [Round]), Value},
       accept(Round, Value, Acceptors),
