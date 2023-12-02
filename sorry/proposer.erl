@@ -36,14 +36,14 @@ ballot(Name, Round, Proposal, Acceptors, PanelId) ->
   prepare(Round, Acceptors),
   Quorum = (length(Acceptors) div 2) + 1,
   MaxVoted = order:null(),
-  case collect(Quorum, Round, MaxVoted, Proposal) of
+  case collect(Quorum, Round, MaxVoted, Proposal, Quorum) of
     {accepted, Value} ->
       io:format("[Proposer ~w] Phase 2: round ~w proposal ~w (was ~w)~n", 
                  [Name, Round, Value, Proposal]),
       % update gui
       PanelId ! {updateProp, "Round: " ++ io_lib:format("~p", [Round]), Value},
       accept(Round, Value, Acceptors),
-      case vote(Quorum, Round) of
+      case vote(Quorum, Round, Quorum) of
         ok ->
           {ok, Value};
         abort ->
@@ -53,41 +53,48 @@ ballot(Name, Round, Proposal, Acceptors, PanelId) ->
       abort
   end.
 
-collect(0, _, _, Proposal) ->
+
+collect(0, _, _, Proposal,_) ->
   {accepted, Proposal};
-collect(N, Round, MaxVoted, Proposal) ->
+
+collect(_, _, _, _, 0) ->
+  abort;
+
+collect(N, Round, MaxVoted, Proposal, NumSorries) ->
   receive 
     {promise, Round, _, na} ->
-      collect(N-1, Round, MaxVoted, Proposal);
+      collect(N-1, Round, MaxVoted, Proposal, NumSorries);
     {promise, Round, Voted, Value} ->
       case order:gr(Voted, MaxVoted) of
         true ->
-          collect(N-1, Round, Voted, Value);
+          collect(N-1, Round, Voted, Value, NumSorries);
         false ->
-          collect(N-1, Round, MaxVoted, Proposal)
+          collect(N-1, Round, MaxVoted, Proposal, NumSorries)
       end;
     {promise, _, _,  _} ->
-      collect(N, Round, MaxVoted, Proposal);
+      collect(N, Round, MaxVoted, Proposal, NumSorries);
     {sorry, {prepare, Round}} ->
-      collect(N, Round, MaxVoted, Proposal);
+      collect(N, Round, MaxVoted, Proposal, NumSorries-1);
     {sorry, _} ->
-      collect(N, Round, MaxVoted, Proposal)
+      collect(N, Round, MaxVoted, Proposal, NumSorries-1)
   after ?TIMEOUT ->
     abort
   end.
 
-vote(0, _) ->
+vote(_, _, 0) ->
+  abort;
+vote(0, _, _) ->
   ok;
-vote(N, Round) ->
+vote(N, Round, NumSorries) ->
   receive
     {vote, Round} ->
-      vote(N-1, Round);
+      vote(N-1, Round, NumSorries);
     {vote, _} ->
-      vote(N, Round);
+      vote(N, Round, NumSorries);
     {sorry, {accept, Round}} ->
-      vote(N, Round);
+      vote(N, Round, NumSorries-1);
     {sorry, _} ->
-      vote(N, Round)
+      vote(N, Round, NumSorries-1)
   after ?TIMEOUT ->
     abort
   end.
