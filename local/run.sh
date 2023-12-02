@@ -10,9 +10,15 @@ measure_drop(){
         for it in $(seq 1 $iterations); do
             echo $r drop $it iter;
             filename=drop_"$r"."$it".out;
-            export drop=$r; erl -noshell -pa ebin -eval "paxy:start([100, 100, 100])" > $output_dir/$filename & pid=$!; sleep 35; kill $pid
-            round=$(grep "DECIDED" $output_dir/$filename | tail -n 1 | awk -F"round {|,'" '{print $2}')
-            echo Drop $r: $round >> $output_dir/summary
+            export send_mode="dropped"; export drop=$r; erl -noshell -pa ebin -eval "paxy:start([100, 100, 100])" > $output_dir/$filename & pid=$!; sleep 35; kill $pid
+            time=$(grep "Total elapsed time" $output_dir/$filename | tr -dc '0-9')
+            round=$(grep "LAST ROUND" $output_dir/$filename | grep "LAST ROUND" | awk '{print $NF}' | sort -n | tail -n 1)
+            is_finished="NO CONSENSUS"
+            count=$(grep -c "LAST ROUND" "$output_dir/$filename")
+            if [ $count -ge 3 ]; then
+                is_finished="FINISHED"
+            fi
+            echo Drop $r: $round in $time ms $is_finished  >> $output_dir/summary
         done
     done
     unset drop
@@ -28,9 +34,15 @@ measure_delays(){
         for it in $(seq 1 $iterations); do
             echo 2000 timeout $d delay $it iter;
             filename=delay_"$d"."$it".out;
-            export delay=$d; erl -noshell -pa ebin -eval "paxy:start([100, 100, 100])" > $output_dir/$filename & pid=$!; sleep 35; kill $pid
-            round=$(grep "DECIDED" $output_dir/$filename | tail -n 1 | awk -F"round {|,'" '{print $2}')
-            echo Delay $d: $round >> $output_dir/summary
+            export send_mode="delayed"; export delay=$d; erl -noshell -pa ebin -eval "paxy:start([100, 100, 100])" > $output_dir/$filename & pid=$!; sleep 35; kill $pid
+            time=$(grep "Total elapsed time" $output_dir/$filename | tr -dc '0-9')
+            round=$(grep "LAST ROUND" $output_dir/$filename | grep "LAST ROUND" | awk '{print $NF}' | sort -n | tail -n 1)
+            is_finished="NO CONSENSUS"
+            count=$(grep -c "LAST ROUND" "$output_dir/$filename")
+            if [ $count -ge 3 ]; then
+                is_finished="FINISHED"
+            fi
+            echo Delay $d: $round Rounds in $time ms $is_finished >> $output_dir/summary
         done
     done
     unset delay
@@ -46,9 +58,15 @@ measure_timeouts(){
         for it in $(seq 1 $iterations); do
             echo $r timeout and 2000 delay $it iter;
             filename=timeout_"$r"."$it".out;
-            export timeout=$r; erl -noshell -pa ebin -eval "paxy:start([100, 100, 100])" > $output_dir/$filename & pid=$!; sleep 35; kill $pid
-            round=$(grep "DECIDED" $output_dir/$filename | tail -n 1 | awk -F"round {|,'" '{print $2}')
-            echo Timeout $r: $round >> $output_dir/summary
+             export send_mode="delayed"; export timeout=$r; erl -noshell -pa ebin -eval "paxy:start([100, 100, 100])" > $output_dir/$filename & pid=$!; sleep 35; kill $pid
+            time=$(grep "Total elapsed time" $output_dir/$filename | tr -dc '0-9')
+            round=$(grep "LAST ROUND" $output_dir/$filename | grep "LAST ROUND" | awk '{print $NF}' | sort -n | tail -n 1)
+            is_finished="NO CONSENSUS"
+            count=$(grep -c "LAST ROUND" "$output_dir/$filename")
+            if [ $count -ge 3 ]; then
+                is_finished="FINISHED"
+            fi
+            echo Timeout $r: $round Rounds in $time ms $is_finished  >> $output_dir/summary
         done
     done
     unset timeout
@@ -57,18 +75,24 @@ measure_timeouts(){
 measure_accept_vs_prop(){
     erl -make
     iterations=5
-    proposers=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20)
-    acceptors=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20)
+    proposers=(3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20)
+    acceptors=(5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20)
     output_dir=experiments/accep_prop
     mkdir -p $output_dir
     for p in "${proposers[@]}"; do
         for a in "${acceptors[@]}"; do
             for it in $(seq 1 $iterations); do
-                echo $p proposers $a acceptors $it iter;
-                filename=prop_"$p"_accept_"$a"."$it".out;
+                echo $p proposers $a acceptors $it iter
+                filename=prop_"$p"_accept_"$a"."$it".out
                 export proposer=$p; export acceptor=$a; erl -noshell -pa ebin -eval "paxy:measure()" > $output_dir/$filename & pid=$!; sleep 35; kill $pid
-                round=$(grep "DECIDED" $output_dir/$filename | tail -n 1 | awk -F"round {|,'" '{print $2}')
-                echo $p Proposers $a Acceptors: $round Rounds >> $output_dir/summary
+                time=$(grep "Total elapsed time" $output_dir/$filename | tr -dc '0-9')
+                round=$(grep "LAST ROUND" $output_dir/$filename | grep "LAST ROUND" | awk '{print $NF}' | sort -n | tail -n 1)
+                is_finished="NO CONSENSUS"
+                count=$(grep -c "LAST ROUND" "$output_dir/$filename")
+                if [ $count -ge $p ]; then
+                    is_finished="FINISHED"
+                fi
+                echo $p Proposers $a Acceptors: $round Rounds in $time ms $is_finished >> $output_dir/summary
             done
         done
     done
@@ -76,7 +100,7 @@ measure_accept_vs_prop(){
     unset acceptor
 }
 
-measure_drop
-measure_delays
-measure_timeouts
+#measure_delays
+#measure_drop
+#measure_timeouts
 measure_accept_vs_prop

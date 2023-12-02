@@ -8,61 +8,40 @@
 -define(NUM_PROP, 3).
 -define(NUM_ACC, 5).
 
-% {Integer, source}
 get_timeout() ->
     T = os:getenv("timeout"),
     case T of
-        false -> {?TIMEOUT, program};
-        _ -> {list_to_integer(T), shell}
+        false -> ?TIMEOUT;
+        _ -> list_to_integer(T)
     end.
 
-% {Integer, source}
 get_delay() ->
     D = os:getenv("delay"),
     case D of
-        false -> {?DELAY, program};
-        _ -> {list_to_integer(D), shell}
+        false -> ?DELAY;
+        _ -> list_to_integer(D)
     end.
 
-% {Bool, source}
-get_drop() ->
+is_dropped() ->
     P = rand:uniform(100),
     D = os:getenv("drop"),
     case D of
-        false -> {false, program};
-        _ -> {P =< list_to_integer(D), shell}
+        false -> false;
+        _ -> P =< list_to_integer(D)
     end.
 
-% Bool
-is_normal_send() ->
-    case {os:getenv("acceptor"), os:getenv("proposer")} of
-        {false, false} -> false;
-        _ -> true
-    end.
-
-% normal | {delayed, Delay} | dropped | normal | Error
+% normal | {delayed, Delay} | dropped | normal 
 get_send_strategy() ->
-    case {is_normal_send(), get_delay(), get_drop(), get_timeout()} of
-        % is acceptor vs proposer measurement
-        {true, _, _,_} ->
-            normal;
-        % is delay measurement
-        {_, {Delay, shell}, _, _} ->
-            {delayed, Delay};
-        % is timeout measurement
-        {_, {Delay, program}, _, {_, shell}} ->
-            {delayed, Delay};
-        % is drop measurement did dropped
-        {_, {_, program}, {true, shell}, _} ->
-            dropped;
-        % is drop measurement didn't dropped
-        {_, {_, program}, {false, shell},_} ->
-            normal;
-        % is normal send
-        {_, {_, program}, {_, program},_} ->
-            normal;
+    case os:getenv("send_mode") of
+        "dropped" ->
+            case  is_dropped() of
+                false -> normal;
+                _ -> dropped
+            end;
+        "delayed" ->
+            {delayed, get_delay()};
         _ ->
-            error(combination_not_found)
+            normal
     end.
 
 get_unique_id() ->

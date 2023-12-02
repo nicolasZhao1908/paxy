@@ -10,7 +10,7 @@
 measure() ->
   AcceptorNames = utils:get_acceptors(),
   AccRegister = [ list_to_atom(X) || X <- AcceptorNames],
-  ProposerNames = [{X,utils:random_color()} || X <- utils:get_proposers()],
+  ProposerNames = [{X,utils:get_random_color()} || X <- utils:get_proposers()],
   Sleep = [100 || _ <- ProposerNames],
   PropInfo = [ {list_to_atom(X), Color} || {X,Color} <- ProposerNames],
   register(gui, spawn(fun() -> gui:start(AcceptorNames, ProposerNames) end)),
