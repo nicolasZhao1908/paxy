@@ -5,39 +5,12 @@
 -define(BLUE, {0,0,255}).
 -define(GREEN, {0,255,0}).
 
--define(NUM_PROP, 3).
--define(NUM_ACC, 5).
 
-generate_unique_id() ->
-    Timestamp = os:timestamp(),
-    lists:flatten(io_lib:format("~w", [Timestamp])).
-
-random_color()->
-  case rand:uniform(4) of
-    1 -> ?RED;
-    2 -> ?BLUE;
-    _ -> ?GREEN 
-  end
-.
-
-get_proposers() ->
-    Val = os:getenv("proposer"),
-    case Val of
-        false -> ?NUM_PROP;
-        _ -> [generate_unique_id() || _ <- lists:seq(1, list_to_integer(Val))]
-    end.
-
-get_acceptors() ->
-    Val = os:getenv("acceptor"),
-    case Val of
-        false -> ?NUM_ACC;
-        _ -> [generate_unique_id() || _ <- lists:seq(1, list_to_integer(Val))]
-    end.
 
 measure() ->
-  AcceptorNames = get_acceptors(),
+  AcceptorNames = utils:get_acceptors(),
   AccRegister = [ list_to_atom(X) || X <- AcceptorNames],
-  ProposerNames = [{X,random_color()} || X <- get_proposers()],
+  ProposerNames = [{X,utils:random_color()} || X <- utils:get_proposers()],
   Sleep = [100 || _ <- ProposerNames],
   PropInfo = [ {list_to_atom(X), Color} || {X,Color} <- ProposerNames],
   register(gui, spawn(fun() -> gui:start(AcceptorNames, ProposerNames) end)),

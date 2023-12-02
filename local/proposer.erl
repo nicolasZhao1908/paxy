@@ -1,16 +1,6 @@
 -module(proposer).
 -export([start/6]).
-
--define(timeout, 2000).
--define(backoff, 10).
-
-get_timeout() ->
-  T = os:getenv("timeout"),
-  case T of
-      false -> ?timeout;
-      _ -> list_to_integer(T) 
-  end.
-  
+-define(BACKOFF, 10).
 
 start(Name, Proposal, Acceptors, Sleep, PanelId, Main) ->
   spawn(fun() -> init(Name, Proposal, Acceptors, Sleep, PanelId, Main) end).
@@ -19,7 +9,7 @@ init(Name, Proposal, Acceptors, Sleep, PanelId, Main) ->
   timer:sleep(Sleep),
   Begin = erlang:monotonic_time(),
   Round = order:first(Name),
-  {Decision, LastRound} = round(Name, ?backoff, Round, Proposal, Acceptors, PanelId),
+  {Decision, LastRound} = round(Name, ?BACKOFF, Round, Proposal, Acceptors, PanelId),
   End = erlang:monotonic_time(),
   Elapsed = erlang:convert_time_unit(End-Begin, native, millisecond),
   io:format("[Proposer ~w] DECIDED ~w in round ~w after ~w ms~n", 
@@ -65,6 +55,7 @@ ballot(Name, Round, Proposal, Acceptors, PanelId) ->
 collect(0, _, _, Proposal) ->
   {accepted, Proposal};
 collect(N, Round, MaxVoted, Proposal) ->
+  {Timeout,_}= utils:get_timeout(),
   receive 
     {promise, Round, _, na} ->
       collect(N-1, Round, MaxVoted, Proposal);
@@ -81,13 +72,14 @@ collect(N, Round, MaxVoted, Proposal) ->
       collect(N, Round, MaxVoted, Proposal);
     {sorry, _} ->
       collect(N, Round, MaxVoted, Proposal)
-  after get_timeout() ->
+  after Timeout ->
     abort
   end.
 
 vote(0, _) ->
   ok;
 vote(N, Round) ->
+  {Timeout,_}= utils:get_timeout(),
   receive
     {vote, Round} ->
       vote(N-1, Round);
@@ -97,7 +89,7 @@ vote(N, Round) ->
       vote(N, Round);
     {sorry, _} ->
       vote(N, Round)
-  after get_timeout() ->
+  after Timeout ->
     abort
   end.
 
