@@ -48,32 +48,16 @@ get_delay() ->
         _ -> list_to_integer(D)
     end.
 
-get_drop() ->
-    P = rand:uniform(10),
-    P =< list_to_integer(os:getenv("drop")).
-
-send_or_drop(Proposer, Message) ->
-    case get_drop() of
-        true -> io:format("dropping message~n", []);
-        false -> Proposer ! Message
-    end.
-
 acceptor(Name, Promised, Voted, Value, PanelId) ->
     receive
         {prepare, Proposer, Round} ->
             case order:gr(Round, Promised) of
                 true ->
                     pers:store(Name, Round, Voted, Value, PanelId),
-                    %Original -----------------------------
-                    %Proposer ! {promise, Round, Voted, Value},
 
-                    %Experiment i.1)-----------------------------
                     T = rand:uniform(get_delay()),
+
                     timer:send_after(T,Proposer,{promise, Round, Voted, Value}),
-
-                    %Experiment iii)-----------------------------
-                    %send_or_drop(Proposer,{promise, Round, Voted, Value}),
-
                     io:format(
                         "[Acceptor ~w] Phase 1: promised ~w voted ~w colour ~w~n",
                         [Name, Round, Voted, Value]
@@ -86,9 +70,7 @@ acceptor(Name, Promised, Voted, Value, PanelId) ->
                         end,
                     PanelId !
                         {updateAcc, "Voted: " ++ io_lib:format("~p", [Voted]),
-                            % Round
                             "Promised: " ++ io_lib:format("~p", [Round]), Colour},
-                    % Round
                     acceptor(Name, Round, Voted, Value, PanelId);
                 false ->
                     Proposer ! {sorry, {prepare, Round}},
@@ -96,43 +78,31 @@ acceptor(Name, Promised, Voted, Value, PanelId) ->
                     acceptor(Name, Promised, Voted, Value, PanelId)
             end;
         {accept, Proposer, Round, Proposal} ->
-            %Promised
             case order:goe(Round, Promised) of
                 true ->
                     pers:store(Name, Round, Voted, Proposal, PanelId),
-                    %Original -----------------------------
-
-                    % Proposer ! {vote, Round}
                     Proposer ! {vote, Round},
-
-                    %Experiment i.1) -----------------------------
-                    %T = rand:uniform(get_delay()),
-                    %timer:send_after(T,Proposer,{vote, Round}),
-
-                    % Experiment iii) -----------------------------
-                    %send_or_drop(Proposer,{vote, Round}),
 
                     case order:goe(Round, Voted) of
                         true ->
+                            pers:store(Name, Promised, Round, Proposal, PanelId),
+                            Proposer ! {vote, Round},
                             io:format(
                                 "[Acceptor ~w] Phase 2: promised ~w voted ~w colour ~w~n",
-                                % Name, Promised, Round, Proposal
                                 [Name, Promised, Round, Proposal]
                             ),
-                            % Update gui
 
-                            % Round
+                            % Update gui
                             PanelId !
                                 {updateAcc, "Voted: " ++ io_lib:format("~p", [Round]),
-                                    %Proposal
                                     "Promised: " ++ io_lib:format("~p", [Promised]), Proposal},
                             acceptor(Name, Promised, Round, Proposal, PanelId);
                         false ->
-                            %Round vs Voted
+                            pers:store(Name, Promised, Voted, Value, PanelId),
+                            Proposer ! {vote, Round},
                             acceptor(Name, Promised, Voted, Value, PanelId)
                     end;
                 false ->
-                    %maybe optimization: Promised here
                     Proposer ! {sorry, {accept, Round}},
                     acceptor(Name, Promised, Voted, Value, PanelId)
             end;

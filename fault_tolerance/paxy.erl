@@ -1,31 +1,10 @@
 -module(paxy).
--export([start/1, measure/0, stop/0, stop/1,crash/1]).
+-export([start/1,stop/0, stop/1,crash/1]).
 
 -define(RED, {255,0,0}).
 -define(BLUE, {0,0,255}).
 -define(GREEN, {0,255,0}).
 
-measure() ->
-  AcceptorNames = utils:get_acceptors(),
-  AccRegister = [ list_to_atom(X) || X <- AcceptorNames],
-  ProposerNames = [{X,utils:get_random_color()} || X <- utils:get_proposers()],
-  Sleep = [100 || _ <- ProposerNames],
-  PropInfo = [ {list_to_atom(X), Color} || {X,Color} <- ProposerNames],
-  register(gui, spawn(fun() -> gui:start(AcceptorNames, ProposerNames) end)),
-  gui ! {reqState, self()},
-  receive
-    {reqState, State} ->
-      {AccIds, PropIds} = State,
-      start_acceptors(AccIds, AccRegister),
-      spawn(fun() -> 
-        Begin = erlang:monotonic_time(),
-        start_proposers(PropIds, PropInfo, AccRegister, Sleep, self()),
-        wait_proposers(length(PropIds)),
-        End = erlang:monotonic_time(),
-        Elapsed = erlang:convert_time_unit(End-Begin, native, millisecond),
-        io:format("[Paxy] Total elapsed time: ~w ms~n", [Elapsed])
-      end)
-  end.
 
 start(Sleep) ->
   AcceptorNames = ["Homer", "Marge", "Bart", "Lisa", "Maggie"],

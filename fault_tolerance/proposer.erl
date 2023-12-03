@@ -4,13 +4,6 @@
 -define(timeout, 2000).
 -define(backoff, 10).
 
-get_timeout() ->
-    T = os:getenv("timeout"),
-    case T of
-        false -> ?timeout;
-        _ -> list_to_integer(T)
-    end.
-
 start(Name, Proposal, Acceptors, Sleep, PanelId, Main) ->
     spawn(fun() -> init(Name, Proposal, Acceptors, Sleep, PanelId, Main) end).
 
@@ -86,7 +79,7 @@ collect(N, Round, MaxVoted, Proposal) ->
             collect(N, Round, MaxVoted, Proposal);
         {sorry, _} ->
             collect(N, Round, MaxVoted, Proposal)
-    after get_timeout() ->
+    after ?timeout ->
         abort
     end.
 
@@ -102,7 +95,7 @@ vote(N, Round) ->
             vote(N, Round);
         {sorry, _} ->
             vote(N, Round)
-    after get_timeout() ->
+    after ?timeout ->
         abort
     end.
 

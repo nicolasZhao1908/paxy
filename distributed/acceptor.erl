@@ -1,7 +1,7 @@
 -module(acceptor).
 -export([start/2]).
 -define(delay_promise, 2000).
--define(delay_accept, 2000).
+-define(delay_vote, 2000).
 -define(drop,1).
 
 
@@ -14,39 +14,14 @@ init(Name, PanelId) ->
   Value = na,
   acceptor(Name, Promised, Voted, Value, PanelId).
 
-get_delay() ->
-  D = os:getenv("delay"),
-  case D of
-      false -> ?delay_promise;
-      _ -> list_to_integer(D)
-  end.
-  
-
-getdrop() ->
-  P = rand:uniform(10),
-  P =< list_to_integer(os:getenv("drop")).
-
-send_or_drop(Proposer, Message) ->
-  case getdrop() of
-    true -> io:format("dropping message~n",[]);
-    false -> Proposer ! Message
-  end.
-
 
 acceptor(Name, Promised, Voted, Value, PanelId) ->
   receive
     {prepare, Proposer, Round} ->
       case order:gr(Round, Promised) of
         true ->
-          %Original -----------------------------
-          %Proposer ! {promise, Round, Voted, Value}, %- original
-
-          %Experiment i.1)-----------------------------
-          T = rand:uniform(get_delay()),
+          T = rand:uniform(?delay_promise),
           timer:send_after(T,Proposer,{promise, Round, Voted, Value}),
-
-          %Experiment iii)-----------------------------
-          %send_or_drop(Proposer,{promise, Round, Voted, Value}),
 
       io:format("[Acceptor ~w on node ~w] Phase 1: promised ~w voted ~w colour ~w~n",
         [Name, node(),Round, Voted, Value]),
@@ -62,17 +37,9 @@ acceptor(Name, Promised, Voted, Value, PanelId) ->
     {accept, Proposer, Round, Proposal} ->
       case order:goe(Round, Promised) of %Promised
         true ->
-
-          %Original -----------------------------
-          %Proposer ! {vote, Round}, % Proposer ! {vote, Round}
-
-          %Experiment i.1) -----------------------------
-          T = rand:uniform(get_delay()),
+          T = rand:uniform(?delay_vote),
           timer:send_after(T,Proposer,{vote, Round}),
 
-          % Experiment iii) -----------------------------
-          %send_or_drop(Proposer,{vote, Round}),
-          
           case order:goe(Round, Voted) of
             true ->
       io:format("[Acceptor ~w on node ~w] Phase 2: promised ~w voted ~w colour ~w~n",

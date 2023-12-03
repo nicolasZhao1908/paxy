@@ -15,6 +15,8 @@ init(Name, Proposal, Acceptors, Sleep, PanelId, Main) ->
   Elapsed = erlang:convert_time_unit(End-Begin, native, millisecond),
   io:format("[Proposer ~w] DECIDED ~w in round ~w after ~w ms~n", 
              [Name, Decision, LastRound, Elapsed]),
+  {Lr,_} = LastRound,
+  io:format("[Proposer ~w] LAST ROUND ~w~n", [Name, Lr]),
   Main ! done,
   PanelId ! stop.
 
@@ -76,7 +78,7 @@ collect(N, Round, MaxVoted, Proposal, NumSorries) ->
     {sorry, {prepare, Round}} ->
       collect(N, Round, MaxVoted, Proposal, NumSorries-1);
     {sorry, _} ->
-      collect(N, Round, MaxVoted, Proposal, NumSorries-1)
+      collect(N, Round, MaxVoted, Proposal, NumSorries)
   after ?TIMEOUT ->
     abort
   end.
@@ -94,7 +96,7 @@ vote(N, Round, NumSorries) ->
     {sorry, {accept, Round}} ->
       vote(N, Round, NumSorries-1);
     {sorry, _} ->
-      vote(N, Round, NumSorries-1)
+      vote(N, Round, NumSorries)
   after ?TIMEOUT ->
     abort
   end.
