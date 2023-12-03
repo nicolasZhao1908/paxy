@@ -1,6 +1,6 @@
 -module(acceptor).
 -export([start/2]).
--define(delay_promise, 2000).
+-define(delay_promise, 6000).
 -define(delay_accept, 2000).
 -define(drop, 1).
 
@@ -24,16 +24,19 @@ init(Name, PanelId) ->
         case Pn of
             % first time acceptor is created
             na ->
-                io:format("[Acceptor ~w] Phase 1: SETUP PanelId. Store PanelId in the backup.", [
+                io:format("[Acceptor ~w] Phase 1: SETUP PanelId. Store PanelId in the backup.~n", [
                     Name
                 ]),
                 pers:store(Name, Promised, Voted, Value, PanelId),
                 PanelId;
             % acceptor is restarted
             _ ->
+                io:format("[Acceptor ~w] RESTART with Promise: ~w, Voted: ~w, Colour: ~w ~n", [
+                    Name,Promised, Voted, Value
+                ]),
                 Pn
         end,
-    PanelId !
+    Pn_id !
         {updateAcc, "Voted: " ++ io_lib:format("~p", [Voted]),
             "Promised: " ++ io_lib:format("~p", [Promised]), Colour},
     acceptor(Name, Promised, Voted, Value, Pn_id).
@@ -62,11 +65,11 @@ acceptor(Name, Promised, Voted, Value, PanelId) ->
                 true ->
                     pers:store(Name, Round, Voted, Value, PanelId),
                     %Original -----------------------------
-                    Proposer ! {promise, Round, Voted, Value},
+                    %Proposer ! {promise, Round, Voted, Value},
 
                     %Experiment i.1)-----------------------------
-                    %T = rand:uniform(get_delay()),
-                    %timer:send_after(T,Proposer,{promise, Round, Voted, Value}),
+                    T = rand:uniform(get_delay()),
+                    timer:send_after(T,Proposer,{promise, Round, Voted, Value}),
 
                     %Experiment iii)-----------------------------
                     %send_or_drop(Proposer,{promise, Round, Voted, Value}),
@@ -96,7 +99,7 @@ acceptor(Name, Promised, Voted, Value, PanelId) ->
             %Promised
             case order:goe(Round, Promised) of
                 true ->
-                    pers:store(Name, Round, Voted, Value, PanelId),
+                    pers:store(Name, Round, Voted, Proposal, PanelId),
                     %Original -----------------------------
 
                     % Proposer ! {vote, Round}
@@ -135,12 +138,12 @@ acceptor(Name, Promised, Voted, Value, PanelId) ->
             end;
         stop ->
             PanelId ! stop,
-            io:format("[Acceptor ~w] Phase 2: STOPPED successfully. It DELETES the backup.", [Name]),
+            io:format("[Acceptor ~w] Phase 2: STOPPED successfully. It DELETES the backup.~n", [Name]),
             pers:close(Name),
             pers:delete(Name),
             ok;
         done ->
-            io:format("[Acceptor ~w] Phase 2: FINISHED successfully. It DELETES the backup.", [Name]),
+            io:format("[Acceptor ~w] Phase 2: FINISHED successfully. It DELETES the backup.~n", [Name]),
             pers:close(Name),
             pers:delete(Name)
     end.
