@@ -6,8 +6,8 @@
 -define(GREEN, {0,255,0}).
 
 
--define(ProposerNode, 'paxy-pro@nicolas-IdeaPad-3-15ADA05').
--define(AcceptorNode,'paxy-acc@nicolas-IdeaPad-3-15ADA05').
+-define(ProposerNode, 'paxy-pro@ferrandf').
+-define(AcceptorNode,'paxy-acc@ferrandf').
 
 start(Sleep) ->
   AcceptorNames = ["Homer", "Marge", "Bart", "Lisa", "Maggie"],

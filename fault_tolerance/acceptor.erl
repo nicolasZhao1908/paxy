@@ -1,6 +1,6 @@
 -module(acceptor).
 -export([start/2]).
--define(delay_promise, 6000).
+-define(delay_promise, 2000).
 -define(delay_accept, 2000).
 -define(drop, 1).
 
@@ -27,19 +27,19 @@ init(Name, PanelId) ->
                 io:format("[Acceptor ~w] Phase 1: SETUP PanelId. Store PanelId in the backup.~n", [
                     Name
                 ]),
-                pers:store(Name, Promised, Voted, Value, PanelId),
+                pers:store(Name, Promised, Voted, Colour, PanelId),
                 PanelId;
             % acceptor is restarted
             _ ->
                 io:format("[Acceptor ~w] RESTART with Promise: ~w, Voted: ~w, Colour: ~w ~n", [
-                    Name,Promised, Voted, Value
+                    Name,Promised, Voted, Colour
                 ]),
                 Pn
         end,
     Pn_id !
         {updateAcc, "Voted: " ++ io_lib:format("~p", [Voted]),
             "Promised: " ++ io_lib:format("~p", [Promised]), Colour},
-    acceptor(Name, Promised, Voted, Value, Pn_id).
+    acceptor(Name, Promised, Voted, Colour, Pn_id).
 
 get_delay() ->
     D = os:getenv("delay"),
@@ -80,9 +80,6 @@ acceptor(Name, Promised, Voted, Value, PanelId) ->
         {accept, Proposer, Round, Proposal} ->
             case order:goe(Round, Promised) of
                 true ->
-                    pers:store(Name, Round, Voted, Proposal, PanelId),
-                    Proposer ! {vote, Round},
-
                     case order:goe(Round, Voted) of
                         true ->
                             pers:store(Name, Promised, Round, Proposal, PanelId),
@@ -98,7 +95,6 @@ acceptor(Name, Promised, Voted, Value, PanelId) ->
                                     "Promised: " ++ io_lib:format("~p", [Promised]), Proposal},
                             acceptor(Name, Promised, Round, Proposal, PanelId);
                         false ->
-                            pers:store(Name, Promised, Voted, Value, PanelId),
                             Proposer ! {vote, Round},
                             acceptor(Name, Promised, Voted, Value, PanelId)
                     end;
