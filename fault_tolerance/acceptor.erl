@@ -1,6 +1,6 @@
 -module(acceptor).
 -export([start/2]).
--define(delay_promise, 6000).
+-define(delay_promise, 2000).
 -define(delay_accept, 2000).
 -define(drop, 1).
 
@@ -59,17 +59,24 @@ send_or_drop(Proposer, Message) ->
     end.
 
 acceptor(Name, Promised, Voted, Value, PanelId) ->
+    % The followed code is NOT the correct way to store it, because this will store
+    % AFTER the sending of the message to the proposer.
+
+    % case pers:read(Name) of
+    %     {Promised, Voted, Value, PanelId} -> ok;
+    %         _ -> pers:store(Name, Promised, Voted, Value, PanelId)
+    % end,
     receive
         {prepare, Proposer, Round} ->
             case order:gr(Round, Promised) of
                 true ->
-                    pers:store(Name, Round, Voted, Value, PanelId),
                     %Original -----------------------------
-                    %Proposer ! {promise, Round, Voted, Value},
+                    pers:store(Name, Round, Voted, Value, PanelId),
+                    Proposer ! {promise, Round, Voted, Value},
 
                     %Experiment i.1)-----------------------------
-                    T = rand:uniform(get_delay()),
-                    timer:send_after(T,Proposer,{promise, Round, Voted, Value}),
+                    %T = rand:uniform(get_delay()),
+                    %timer:send_after(T,Proposer,{promise, Round, Voted, Value}),
 
                     %Experiment iii)-----------------------------
                     %send_or_drop(Proposer,{promise, Round, Voted, Value}),
@@ -99,12 +106,9 @@ acceptor(Name, Promised, Voted, Value, PanelId) ->
             %Promised
             case order:goe(Round, Promised) of
                 true ->
-                    pers:store(Name, Round, Voted, Proposal, PanelId),
                     %Original -----------------------------
 
-                    % Proposer ! {vote, Round}
-                    Proposer ! {vote, Round},
-
+                    % Proposer ! {vote, Round},
                     %Experiment i.1) -----------------------------
                     %T = rand:uniform(get_delay()),
                     %timer:send_after(T,Proposer,{vote, Round}),
@@ -114,6 +118,14 @@ acceptor(Name, Promised, Voted, Value, PanelId) ->
 
                     case order:goe(Round, Voted) of
                         true ->
+                            % if we store it AFTER the sending, then it could happen that before updating
+                            % the acceptor's own state the acceptor crashes. When it restarts after a
+                            % certain delay it does NOT know that it already sent a vote to the proposer, and
+                            % thus sends again the same vote. The proposer was trying to reach majority on its
+                            % proposal now reaches majority because it received a duplicated vote from the
+                            % SAME acceptor, which is conceptually wrong.
+                            pers:store(Name, Promised, Round, Proposal, PanelId),
+                            Proposer ! {vote, Round},
                             io:format(
                                 "[Acceptor ~w] Phase 2: promised ~w voted ~w colour ~w~n",
                                 % Name, Promised, Round, Proposal
@@ -128,7 +140,7 @@ acceptor(Name, Promised, Voted, Value, PanelId) ->
                                     "Promised: " ++ io_lib:format("~p", [Promised]), Proposal},
                             acceptor(Name, Promised, Round, Proposal, PanelId);
                         false ->
-                            %Round vs Voted
+                            Proposer ! {vote, Round},
                             acceptor(Name, Promised, Voted, Value, PanelId)
                     end;
                 false ->
@@ -142,6 +154,14 @@ acceptor(Name, Promised, Voted, Value, PanelId) ->
             pers:close(Name),
             pers:delete(Name),
             ok;
+%        stop ->
+%            PanelId ! stop,
+%            io:format("[Acceptor ~w] Phase 2: STOPPED successfully. It DELETES the backup.~n", [Name]),
+%            pers:close(Name),
+%            case pers:delete(Name) of
+%                {error, enoent} -> ok %do nothing, it has already been deleted
+%            end,
+%            ok;
         done ->
             io:format("[Acceptor ~w] Phase 2: FINISHED successfully. It DELETES the backup.~n", [Name]),
             pers:close(Name),
